@@ -19,7 +19,6 @@ app.post('/login',[authorize],(req,res)=>{
      jwttoken.sign({filterArray},secrectkey,{expiresIn:'300s'},(err,token)=>{    
        res.json({
         "token":token
-        
        })
     })
 })
@@ -53,22 +52,22 @@ function verifyToken(req,res,next) {
  }
 }
 
-// let student =[
-//     {name:"Smith",age:31,marks:80},
-//     {name:"Jenny",age:15,marks:69},
-//    {name:"John",age:15,marks:35},
-//   {name:"Tiger",age:7,marks:55}
-//    ];
+let student =[
+    {name:"Smith",age:31,marks:80},
+    {name:"Jenny",age:15,marks:69},
+   {name:"John",age:15,marks:35},
+  {name:"Tiger",age:7,marks:55}
+   ];
 
-// const s=  student.reduce((acc,curr)=>{
+const s=  student.reduce((acc,curr)=>{
 
-//        const age = curr.age;
+       const age = curr.age;
 
-//        acc[age]=acc[age] || [];
-//        acc[age].push(curr);
-//        return acc;
-//    },{})
+       acc[age]=acc[age] || [];
+       acc[age].push(curr);
+       return acc;
+   },{})
 
-// console.log(s);
+console.log(s);
 
 app.listen(8000,console.log("Listening"));
