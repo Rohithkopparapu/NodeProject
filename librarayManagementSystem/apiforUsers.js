@@ -1,18 +1,20 @@
 require('dotenv').config();
 const users = require('./users.js');
 const express = require('express');
-const app = express();
+const app = express.Router();
 const { verifyUser, details, verifyUserByEmail } = require('./authorizeUsers.js');
 const jwttoken = require('jsonwebtoken');
 const secrectkey = "secrectkey";
 const cors = require('cors');
 const categories=require('./categoreiesController.js');
+const catController=require("./logicController.js");
 app.use(express.json());
 
 app.use(cors({
     origin: "*"
 }));
 
+app.use('/catController',catController);
 
 app.post('/newUser', async (req,res)=>{
    
@@ -53,7 +55,7 @@ app.post('/login',verifyUser, (req, res) => {
 
     let value = details();
     res.setHeader('Proxy_user_id',"null");
-    jwttoken.sign(value, secrectkey, { expiresIn: '3600s' }, (err, token) => {
+    jwttoken.sign(value, secrectkey, { expiresIn: '4800s' }, (err, token) => {
        if(token){
         console.log(value);
         res.status(200).json({
@@ -74,7 +76,7 @@ app.post('/login',verifyUser, (req, res) => {
 app.post('/login/email', verifyUserByEmail, (req, res) => {
 
     let value = details();
-    jwttoken.sign({ value }, secrectkey, { expiresIn: '3600s' }, (err, token) => {
+    jwttoken.sign({ value }, secrectkey, { expiresIn: '4800s' }, (err, token) => {
        if(token){
         console.log(value);
         res.status(200).json({
@@ -199,4 +201,6 @@ function verifyJWTtoken(req, res, next) {
 }
 
 
-app.listen(8000, console.log('Listening port 8000'));
+module.exports = app;
+
+// app.listen(8080, console.log('Listening port 8000'));

@@ -12,6 +12,7 @@ const returnbookModel = require('./returnBooks.js');
 const mutlipleissueBooks = require('./mutlipleissueBooks.js');
 const multireturnbookModel = require('./multiplereturnbooks.js');
 const multipleissueModel = require('./mutlipleissueBooks.js');
+const userModel = require('./users.js');
 
 var issuebookArray = [];
 var issueBooksPayload = {};
@@ -37,6 +38,101 @@ router.post("/addBooks", verifyJWTtoken, async (req, res) => {
         }
         else {
             res.status(400).json({ message: "Categories can be craeted by Admin only." })
+        }
+    })
+})
+
+router.get('/getStudentlist',verifyJWTtoken,async(req,res)=>{
+    jwttoken.verify(req.token, secrectkey, async (err, authData) => {
+        if (err) {
+            res.status("Token Inavalid")
+        }
+        else if (authData.value.role === 'Admin' || authData.value.role === 'Librarian') {
+            let data = await userModel.find({role:'Student'});
+            if (data) {
+                res.status(200).json({ message: 'Sucess',list: data });
+            } else {
+                res.status(500).json({ error: 'Failed to Load data' });
+            }
+        }
+        else{
+            res.status(400).json({ error: 'Librarian and Admin Can only access' });
+        }
+    })
+})
+
+router.post('/addStudent',verifyJWTtoken,async(req,res)=>{
+    jwttoken.verify(req.token, secrectkey, async (err, authData) => {
+        if (err) {
+            res.status(200).json({ message: "Inavlid token" });
+        }
+        else{
+         let newuser = req.body;
+         if(newuser){
+            let save = new userModel(newuser);
+            let savenewuser = await save.save();
+            if(savenewuser){
+              res.status(200).json({message:'Student Details Added Scuessfully'});
+            }
+            else{
+               res.status(501).json({message:'Internal Server Error'});
+            }
+         }else{
+            res.status(400).json({message:'Please Provide All Details'});
+         }
+        }
+    })
+})
+
+router.put('/students/:_id',verifyJWTtoken,async (req,res)=>{
+    jwttoken.verify(req.token, secrectkey, async (err, authData) => {
+        if (err) {
+            res.status(200).json({ message: "Inavlid token" });
+        }
+        else{
+          const librarianId= await userModel.find({_id:req.params._id});
+          if(librarianId && librarianId.length > 0){
+            let updates = req.body;
+            if(updates){
+          const afterupdate=updates.map(async element => {
+                const s = await userModel.updateOne({ _id: element._id }, { $set: element });
+                return s;
+             });       
+             if(afterupdate.length > 0){
+                res.status(200).json({message:'Record Update ScuessFully'});
+             }
+             else{
+                res.status(400).json({message:'Updation Failed Internal Sever Error'});
+             }
+
+            }
+            else{
+            res.status(400).json({message:'Please Select AtLeast One Record'});
+            }
+          }
+          else{
+             res.status(400).json({message:'Admin or Librarian can only Update'});
+          }
+        }
+    })
+})
+
+router.delete('/student/:_id',verifyJWTtoken, async(req,res)=>{
+    jwttoken.verify(req.token, secrectkey, async (err, authData) => {
+        if (err) {
+            res.status(200).json({ message: "Inavlid token" });
+        }
+        else if(authData.value.role === 'Admin' || authData.value.role === 'Librarian'){
+            const deleteStudentRecord = await userModel.deleteOne({_id:req.params._id});
+            if(deleteStudentRecord){
+               res.status(200).json({message:'Record Deleted Sucessfully'});
+            }
+            else{
+                res.status(501).json({message:'Internal Server Error'});
+            }
+        }
+        else{
+            res.status(400).json({message:'Only Admin and Librarian are able to delete'});
         }
     })
 })
@@ -320,10 +416,10 @@ router.post('/issueBooks/:_id', verifyJWTtoken, async (req, res) => {
         else if (authData.value.role === 'Librarian') {
             let studentId = await users.findOne({ _id: req.params._id });
             let checkIfBookAlreadyIssued = await mutlipleissueBooks.find({ studentId: req.params._id });
-            console.log(...checkIfBookAlreadyIssued);
             if (studentId) {
                 if (req.body) {
                     let books = req.body;
+
                     // Use Promise.all to wait for all asynchronous operations in the loop
                     let errors = [];
                     issuebookArray=[];
@@ -333,15 +429,20 @@ router.post('/issueBooks/:_id', verifyJWTtoken, async (req, res) => {
                                 // res.status(400).json({ message: "Category Not Found" })
                                 errors.push("Category Not Found");
                             }
-                            else {
+                            else  {
+
+
                                 let category = await categoriesModel.findOne({ categoryname: element.categoryname });
                                 let issuedBooks = checkIfBookAlreadyIssued.map(issue => issue.books).flat();
-                              
-                                if (issuedBooks.some(issuedBook => issuedBook.bookname.toLowerCase() === element.bookname.toLowerCase()) && issuedBooks.some(issuedBook => issuedBook.categoryName.toLowerCase() === element.categoryname.toLowerCase())) {
+                                let book = category.books.find(book => book.title.toLowerCase() === element.bookname.toLowerCase());
+                                if (issuedBooks.some(issuedBook => issuedBook.bookname.toLowerCase() === element.bookname.toLowerCase()) && issuedBooks.some(issuedBook => issuedBook.categoryName.toLowerCase() === element.categoryname.toLowerCase()) && book.bookcount === 0) {
                                     //  res.status(400).json({ message: "Book already issued" });
-                                    errors.push("Book already issued");
+                                    errors.push("Out of stock");
                                 }
-                                else {
+                                else if(issuedBooks.some(issuedBook => issuedBook.bookname.toLowerCase() === element.bookname.toLowerCase()) && issuedBooks.some(issuedBook => issuedBook.categoryName.toLowerCase() === element.categoryname.toLowerCase()) && checkIfBookAlreadyIssued.some(item => item.studentId === req.params._id)){
+                                    errors.push("Already Same Book Issued For Same Student");
+                                }
+                                else{
                                     let book = category.books.find(book => book.title.toLowerCase() === element.bookname.toLowerCase());
                                     let bookdetails = {
                                         "categoryId": category._id.toString(),
@@ -350,7 +451,6 @@ router.post('/issueBooks/:_id', verifyJWTtoken, async (req, res) => {
                                         "bookname": book.title
                                     }
                                     issuebookArray.push(bookdetails);
-                                  
                                     issueBooksPayload = {
                                         "librarianId": authData.value.id,
                                         "studentId": studentId._id.toString(),
@@ -370,12 +470,16 @@ router.post('/issueBooks/:_id', verifyJWTtoken, async (req, res) => {
                         if (addIssueBooks.books && addIssueBooks.books.length > 0) {
                             await Promise.all(
                                 issueBooksPayload.books.map(async element => {
-                                    if (element.categoryName != '') {
+
+                               let category = await categoriesModel.findOne({ categoryname: element.categoryName });
+                               let book = category.books.find(book => book.title.toLowerCase() === element.bookname.toLowerCase());
+                                  console.log(book);
+                                    if (element.categoryName != '' && book.bookcount > 0 ) {
                                         updateIssueBook = await categoriesModel.updateOne(
-                                            { _id: element.categoryId },
-                                            { $inc: { currentBookCount: -1 } }
+                                            { categoryname: element.categoryName, "books._id": element.bookId },
+                                            { $inc: { currentBookCount: -1,"books.$.bookcount": -1 } }
                                         )
-                                        
+                                        console.log(updateIssueBook);
                                     }
 
                                 })
@@ -383,9 +487,10 @@ router.post('/issueBooks/:_id', verifyJWTtoken, async (req, res) => {
                             );
 
                         }
-                        if (updateIssueBook) {
+                    
+                        if (addIssueBooks) {
                             let issuebook = await addIssueBooks.save();
-                            console.log(issuebook);
+                            // console.log(issuebook);
                             res.status(200).json({ message: "Book is issued successfully" });
                         }
 
@@ -549,6 +654,7 @@ router.post('/returnBooks/:studentId', verifyJWTtoken, async (req, res) => {
 
 
 router.post('/returnBooksById/:studentId', verifyJWTtoken, async (req, res) => {
+    multireturnbooks=[];
     jwttoken.verify(req.token, secrectkey, async (err, authData) => {
        if(err){
         res.status(400).json({message:"Invalid Token"});
@@ -557,10 +663,11 @@ router.post('/returnBooksById/:studentId', verifyJWTtoken, async (req, res) => {
         let issuedbooks = await multipleissueModel.find({studentId:req.params.studentId});
         let books = req.body;
         if(issuedbooks && books){
+            console.log(issuedbooks);
            issuedbooks.map(book => {
            book.books.map(element => {
             
-            if(books.find(item => item.categoryname === element.categoryName && item.bookname === element.bookname))
+            if( element != null && req.body.find(item => item.categoryname === element.categoryName && item.bookname === element.bookname))
             {
             let issuedbooksofstdents = {
                 "librarianId": book.librarianId,
@@ -575,17 +682,17 @@ router.post('/returnBooksById/:studentId', verifyJWTtoken, async (req, res) => {
             }
            })
         })
-       
+    
         let totalCharges=0;
         let returnDate = new Date();
         let  numberOfDays = 0;
         if(multireturnbooks.length > 0){
            multireturnbooks.forEach(book =>{
-              numberOfDays = Math.ceil((returnDate - book.issuedate) / (1000 * 60 * 60 * 24));
-            if (numberOfDays > 5) {
+              numberOfDays = Math.ceil((returnDate - book.duedate) / (1000 * 60 * 60 * 24));
+            if (numberOfDays > 0) {
                 const daysOverdue = numberOfDays;
                 const perDayCharge = 5; // Set your per-day charge here
-                totalCharges = totalCharges +   daysOverdue * perDayCharge;
+                totalCharges =  daysOverdue * perDayCharge;
             }
             // If dueDate and returnDate are the same, set charges to zero
             if (book.duedate.toDateString() === returnDate.toDateString()) {
@@ -600,39 +707,103 @@ router.post('/returnBooksById/:studentId', verifyJWTtoken, async (req, res) => {
             "numberOfDays": numberOfDays,
             "charges": totalCharges
         }
-       
-        if(modelForReturnBooks){
-            let result = new multireturnbookModel(modelForReturnBooks);
-            let returnbookarray = await result.save();
-            let s = issuedbooks.map(async book => {
-                book.books = book.books.filter(element => {
-                    if (books.find(item => item.categoryname === element.categoryName && item.bookname === element.bookname)) {
-                        return false; 
-                    } else {
-                        return true;
+        // if(modelForReturnBooks){
+        //     let result = new multireturnbookModel(modelForReturnBooks);
+        //     let returnbookarray = await result.save();
+        //     let s = issuedbooks.map(async book => {
+        //         book.books = book.books.filter(async element => {
+        //             let updatebook = await categoriesModel.updateOne(
+        //                 { categoryname: element.categoryName, "books._id": element.bookId },
+        //                 { $inc: { currentBookCount: +1,"books.$.bookcount": +1 } }
+        //             )
+        //             if (books.find(item => item.categoryname === element.categoryName && item.bookname === element.bookname)) {
+        //                 console.log(books.find(item => item.categoryname === element.categoryName && item.bookname === element.bookname));
+        //                 return false; 
+        //             } else {
+        //                 return true;
+        //             }
+                    
+        //         });
+               
+        //        if(book.books.length === 0){
+        //             let deleterow = await mutlipleissueBooks.deleteOne({ _id : book._id.toString()});
+        //             console.log(deleterow);
+        //         }
+        //         console.log(book._id.toString());
+        //         let updated=await mutlipleissueBooks.updateOne({_id:book._id.toString()},{$set:{books:book.books}});
+        //         console.log('Hi');
+        //         console.log(book.books);
+        //         console.log(updated);
+        //     });
+        
+         
+        //     if(returnbookarray){
+        //         res.status(200).json({
+        //             message:"Books Returned ScuessFully ..",
+        //             charges:modelForReturnBooks.charges
+        //         })
+        //     }
+        //     else{
+        //         res.status(400).json({
+        //             message:"Books Returned Failed"
+        //         })
+        //     }
+        // }
+        if (modelForReturnBooks) {
+            try {
+                let result = new multireturnbookModel(modelForReturnBooks);
+                let returnbookarray = await result.save();
+        
+                // Loop through issuedbooks array
+                for (let i = 0; i < issuedbooks.length; i++) {
+                    let book = issuedbooks[i];
+                     console.log(book);
+                    
+                    
+                    book.books =await Promise.all(book.books.map(async element => {
+                       
+                        if (req.body.some(item => item.categoryname === element.categoryName && item.bookname === element.bookname)) {
+                            // Condition to identify the book to delete
+                            let updatebook = await categoriesModel.updateOne(
+                                { categoryname: element.categoryName, "books._id": element.bookId },
+                                { $inc: { currentBookCount: +1, "books.$.bookcount": +1 } }
+                            );
+                            return null; // Returning null will remove the book from the array
+                        }
+                        return element; // Keep the book if it doesn't meet the delete condition                
+                    }));
+                    book.books = book.books.filter(element => element !== null);
+                  
+                    if (book.books.length === 0) {
+                        let deleterow = await mutlipleissueBooks.deleteOne({ _id : book._id.toString()});
+                        console.log(deleterow);
+                        console.log(book.books.length);
                     }
-                });
-                if(book.books.length === 0){
-
-                    let deleterow = await mutlipleissueBooks.deleteOne({ _id : book._id});
+                    
+                        // Update book.books array
+                        let updated = await mutlipleissueBooks.updateOne({ _id: book._id.toString() }, { $set: { books: book.books } });
+                      
                 }
-                let updated=await mutlipleissueBooks.updateOne({_id:book._id},{$set:{books:book.books}});
-            });
-            
-            
-            if(returnbookarray){
-                res.status(200).json({
-                    message:"Books Returned ScuessFully ..",
-                    charges:modelForReturnBooks.charges
-                })
-            }
-            else{
-                res.status(400).json({
-                    message:"Books Returned Failed"
-                })
+        
+                // Respond based on returnbookarray value
+                if (returnbookarray) {
+                    res.status(200).json({
+                        message: "Books Returned Successfully ..",
+                        charges: modelForReturnBooks.charges
+                    });
+                } else {
+                    res.status(400).json({
+                        message: "Books Returned Failed"
+                    });
+                }
+            } catch (error) {
+                console.error(error);
+                res.status(500).json({
+                    message: "Internal Server Error"
+                });
             }
         }
-         
+        
         }
         else{
             res.status(400).json({message:"Atleast Return One Book"});
