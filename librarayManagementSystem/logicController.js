@@ -93,7 +93,7 @@ router.put('/students/:_id',verifyJWTtoken,async (req,res)=>{
           const librarianId= await userModel.find({_id:req.params._id});
           if(librarianId && librarianId.length > 0){
             let updates = req.body;
-            if(updates){
+            if(Array.isArray(updates)  &&  updates.length > 0){
           const afterupdate=updates.map(async element => {
                 const s = await userModel.updateOne({ _id: element._id }, { $set: element });
                 return s;
@@ -178,7 +178,7 @@ router.get('/getBooks/:categoryname', verifyJWTtoken, async (req, res) => {
 router.get('/studentusers',verifyJWTtoken,async (req, res) => {
     jwttoken.verify(req.token, secrectkey, async (err, authData) => {
         if (err) {
-            res.status(400).send('Invalid token');
+            res.status(400).json({ message: "Inavlid token" });
         } else {
             let data = await users.find({role:'Student'});
             if (data) {
@@ -417,7 +417,7 @@ router.post('/issueBooks/:_id', verifyJWTtoken, async (req, res) => {
             let studentId = await users.findOne({ _id: req.params._id });
             let checkIfBookAlreadyIssued = await mutlipleissueBooks.find({ studentId: req.params._id });
             if (studentId) {
-                if (req.body) {
+                if (Array.isArray(req.body) && req.body) {
                     let books = req.body;
 
                     // Use Promise.all to wait for all asynchronous operations in the loop
@@ -615,7 +615,7 @@ router.post('/returnBooks/:studentId', verifyJWTtoken, async (req, res) => {
             if (req.body != '' || req.body != null || req.body != undefined) {
 
                 let returnbooksbyuser = req.body;
-                if (returnbooksbyuser) {
+                if ( Array.isArray(req.body) && returnbooksbyuser) {
                     returnbooksbyuser.map(async book => {
                         if (book.issuedId != '' || book.categoryname != '' || book.bookname != '') {
                             let checkIssuedId = await mutlipleissueBooks.findOne({ _id: element.id });
@@ -662,7 +662,7 @@ router.post('/returnBooksById/:studentId', verifyJWTtoken, async (req, res) => {
        else if(authData){
         let issuedbooks = await multipleissueModel.find({studentId:req.params.studentId});
         let books = req.body;
-        if(issuedbooks && books){
+        if(issuedbooks && books && Array.isArray(req.body)){
             console.log(issuedbooks);
            issuedbooks.map(book => {
            book.books.map(element => {
@@ -832,6 +832,77 @@ router.get('/getIssuedBooks/:_id',verifyJWTtoken,  async (req, res) => {
         }
     })
 })
+
+router.get('/issuedbooks/report/:type',verifyJWTtoken,async(req,res)=>{
+    jwttoken.verify(req.token, secrectkey, async (err, authData) => {
+        if (err) {
+            res.status(400).json({ message: "Invalid Token" });
+        }else if(req.params.type === 'Weekly'){
+            let books = await multireturnbookModel.find();
+            let returnDate = new Date();
+            let weeklyBooks = books.filter(book => {
+                return book.books.some(item => {
+                    
+                    let diff = returnDate - item.issuedate;
+                    let daysDiff = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                     return daysDiff < 7 ;
+                });
+            });
+          if(weeklyBooks){
+              res.status(200).json({
+                  message: weeklyBooks
+              })
+          }
+          else{
+            res.status(501).json({message:'Internal Server Error'})
+          }
+        }
+        else if(req.params.type === 'For 15 days'){
+            let books = await multireturnbookModel.find();
+            let returnDate = new Date();
+            let weeklyBooks = books.filter(book => {
+                return book.books.some(item => {
+                    
+                    let diff = returnDate - item.issuedate;
+                    let daysDiff = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                     return daysDiff < 15;
+                });
+            });
+            if(weeklyBooks){
+                res.status(200).json({
+                    message: weeklyBooks
+                })
+            }
+            else{
+              res.status(501).json({message:'Internal Server Error'})
+            }
+        }
+        else if(req.params.type === 'Monthly'){
+            let books = await multireturnbookModel.find();
+            let returnDate = new Date();
+            let weeklyBooks = books.filter(book => {
+                return book.books.some(item => {
+                    
+                    let diff = returnDate - item.issuedate;
+                    let daysDiff = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                     return daysDiff < 30 ;
+                });
+            });
+            if(weeklyBooks){
+                res.status(200).json({
+                    message: weeklyBooks
+                })
+            }
+            else{
+              res.status(501).json({message:'Internal Server Error'})
+            }
+        }
+     })    
+})
+
+
+
+
 
 function verifyJWTtoken(req, res, next) {
     const bearerHeader = req.headers['authorization'];

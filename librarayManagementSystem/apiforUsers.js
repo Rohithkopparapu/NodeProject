@@ -97,7 +97,7 @@ app.post('/login/email', verifyUserByEmail, (req, res) => {
 app.post('/userdetails', verifyJWTtoken, async (req, res) => {
     jwttoken.verify(req.token, secrectkey, async (err, authData) => {
         if (err) {
-            res.status(401).send('Invalid token');
+            res.status(401).json({ message: "Inavlid token" });
         } else {
 
             let data = new users(req.body);
@@ -116,7 +116,7 @@ app.post('/userdetails', verifyJWTtoken, async (req, res) => {
 app.get('/userdetails', verifyJWTtoken, async (req, res) => {
     jwttoken.verify(req.token, secrectkey, async (err, authData) => {
         if (err) {
-            res.status(401).send('Invalid token');
+            res.status(401).json({ message: "Inavlid token" });
         } else {
             let data = await users.find({role:'Student'});
             if (data) {
@@ -135,7 +135,7 @@ app.get('/userdetails', verifyJWTtoken, async (req, res) => {
 app.put('/userdetails/:_id', verifyJWTtoken, async (req, res) => {
     jwttoken.verify(req.token, secrectkey, async (err, authData) => {
         if (err) {
-            res.status(401).send('Invalid token');
+            res.status(401).json({ message: "Inavlid token" });
         } else {
             let data = await users.updateOne(
                { _id: req.params._id }, { $set: req.body },
@@ -154,7 +154,7 @@ app.put('/userdetails/:_id', verifyJWTtoken, async (req, res) => {
 app.delete('/userdetails/:_id', [verifyJWTtoken], async (req, res) => {
     jwttoken.verify(req.token, secrectkey, async (err, authData) => {
         if (err) {
-            res.status(401).send('Invalid token');
+            res.status(401).json({ message: "Inavlid token" });
         } else {
             console.log(authData);
             if (authData.role === 'Admin' && authData.id !== req.params._id) {
