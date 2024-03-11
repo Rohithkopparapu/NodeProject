@@ -900,6 +900,33 @@ router.get('/issuedbooks/report/:type',verifyJWTtoken,async(req,res)=>{
      })    
 })
 
+router.get('/customdates/:startDate/:endDate',verifyJWTtoken,async(req,res)=>{
+    jwttoken.verify(req.token, secrectkey, async (err, authData) => {
+        if (err) {
+            res.status(400).json({ message: "Invalid Token" });
+        }else if(req.params.startDate != '' && req.params.endDate != ''){
+            let books = await multireturnbookModel.find();
+            let weeklyBooks = books.filter(book => {
+                return book.books.some(item => {
+                    
+                    let diff = req.params.endDate - req.params.startDate;
+                    const issueDate = new Date(item.issuedate).getFullYear()+ "-" +  String(new Date(item.issuedate).getUTCMonth() + 1).padStart(2, '0') + "-" + String(new Date(item.issuedate).getDate()).padStart(2, '0');
+                    console.log( issueDate, req.params.endDate);
+                     return issueDate >= req.params.startDate && issueDate <= req.params.endDate;
+
+                });
+            });
+          if(weeklyBooks){
+              res.status(200).json({
+                  message: weeklyBooks
+              })
+          }
+          else{
+            res.status(501).json({message:'Internal Server Error'})
+          }
+        }
+     })    
+})
 
 
 
