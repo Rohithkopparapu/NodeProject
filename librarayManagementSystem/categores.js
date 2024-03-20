@@ -29,6 +29,11 @@ const categorySchema = new mongoose.Schema({
 categorySchema.pre('save', function (next) {
     this.booksCount = this.books.length;
     this.currentBookCount = this.books.length; 
+    this.books.forEach(book => {
+        if (!book._id) {
+            book._id = mongoose.Types.ObjectId();
+        }
+    });
     next();
 });
 const categoryModel= mongoose.model('categories',categorySchema);

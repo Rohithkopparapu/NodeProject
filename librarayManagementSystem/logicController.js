@@ -929,6 +929,47 @@ router.get('/customdates/:startDate/:endDate',verifyJWTtoken,async(req,res)=>{
 })
 
 
+router.post('/addNewBooktoExistingCategory/:adminId',verifyJWTtoken,async(req,res)=>{
+    jwttoken.verify(req.token, secrectkey, async (err, authData) => {
+        let findAdminId = await userModel.find({_id:req.params.adminId})
+        if (err) {
+            res.status(400).json({ message: "Invalid Token" });
+        }
+      else if(findAdminId.length > 0){
+        let book = req.body;
+        console.log(book);
+         if(book){
+        let bookCount = 0;
+        book.books.forEach((book)=>{
+           if(book._id ){
+            
+           }
+           else{
+            bookCount = bookCount + book.bookcount;
+            console.log(bookCount);
+           }
+        })
+           let  getBookBasedOnCategory = await categoryModel.findOne({categoryname: book.categoryname});
+           console.log(getBookBasedOnCategory);
+          let updatebook = await categoryModel.updateOne({categoryname:book.categoryname},{$set:{ books:book.books,booksCount:getBookBasedOnCategory.booksCount + bookCount ,currentBookCount:getBookBasedOnCategory.currentBookCount + bookCount  }});
+          if(updatebook){
+            res.status(200).json({message: "Inserted new book SucessFully ...."})
+          }
+          else{
+            res.status(400).json({message: "Updation failed"})
+          }
+         }
+         else{
+            res.status(400).json({ message :"Books Data Must Provide" })
+         }
+      }
+      else{
+        res.status(400).json({ message :"Admin ID Shuold Not Null" })
+      }
+    })
+})
+
+
 
 
 function verifyJWTtoken(req, res, next) {
